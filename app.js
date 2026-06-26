@@ -1,8 +1,8 @@
 // --- Main Application Logic ---
-// app.js version: v2.7 (2026-06-26)
-// 変更内容: 日付セレクターを「今日・明日・明後日」のみから、各サイトが実際に表示している
-//          おおよそ10日先（3日後〜9日後を実日付・曜日付きで動的に追加）まで選択できるよう拡張。
-//          Open-MeteoのAPI取得日数も forecast_days=3 → 10 に拡張。
+// app.js version: v2.8 (2026-06-26)
+// 変更内容: 風速マップ(Windy)に選択地点のマーカー(ピン)を表示し、クリックでピンポイントの
+//          数値が確認できるようにした（色のグラデーションだけでは正確な値が分かりにくいため）
+//          ※v2.7: 日付セレクターを各サイトの実際の表示範囲（約10日先）まで拡張
 //          ※v2.6: 「現在の天気」が日付セレクターの影響を受けるバグを修正
 //          ※v2.5: 「1時間後/3時間後/6時間後/12時間後」が日付セレクターの影響を受けるバグを修正
 //          ※v2.4: 起動時に「日付」「指定時刻」を自動的に次の朝4:00へ設定
@@ -441,7 +441,9 @@ function showWindMap() {
   // Windyの埋め込みURL（緯度経度・風速レイヤー初期表示を指定、zoom=12でさらに詳細表示）
   // metricWind=default だとWindy側の初期設定（多くの場合ノット表示）になり、
   // アプリ本体（m/s表示）と単位が異なって見えてしまうため、明示的にm/sを指定する
-  const windyUrl = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lng}&zoom=12&level=surface&overlay=wind&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&detailLat=${lat}&detailLon=${lng}&metricWind=m%2Fs&metricTemp=%C2%B0C&radarRange=false`;
+  // marker=true: 選択した地点にピンを表示し、クリックすると正確な数値が確認できるようにする
+  // （色のグラデーションだけでは正確な値が分かりにくいため）
+  const windyUrl = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lng}&zoom=12&level=surface&overlay=wind&menu=&message=&marker=true&calendar=&pressure=&type=map&location=coordinates&detail=true&detailLat=${lat}&detailLon=${lng}&metricWind=m%2Fs&metricTemp=%C2%B0C&radarRange=false`;
   
   iframe.src = windyUrl;
   modal.classList.add("show");
