@@ -1,4 +1,4 @@
-<!-- index.html version: v1.7 (2026-06-26) 変更内容: Windy地図に自前のピン(中心固定)を追加、ボタン文字短縮（画面保存/LINE） -->
+<!-- index.html version: v1.8 (2026-06-26) 変更内容: Windy本来のピンが正常動作していたため、自前の重ねピンを削除 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -275,12 +275,6 @@
         </div>
         <div class="modal-body" style="padding: 0; background: #0b0f19; position: relative;">
           <iframe id="windy-iframe" src="" style="width: 100%; height: 100%; border: none; border-radius: 0 0 16px 16px;"></iframe>
-          <!-- Windy埋め込み版では公式のピン表示が出ないことがあるため、地図の中心（=選択地点）を
-               常に指す自前のマーカーを重ねて表示する。Windyの地図はlat/lonで中心固定されるため、
-               画面中央に固定表示すれば必ず選択地点を指すことになる。 -->
-          <div id="windy-center-pin" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%); pointer-events: none; z-index: 10;">
-            <i class="fa-solid fa-location-dot" style="color: #ff007f; font-size: 28px; text-shadow: 0 0 10px rgba(255,0,127,0.7), 0 0 2px #000;"></i>
-          </div>
         </div>
       </div>
     </div>
