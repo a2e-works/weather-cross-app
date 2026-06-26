@@ -1,4 +1,4 @@
-/* style.css version: v1.1 (2026-06-26) 変更内容: action-groupにflex-basisを設定し、margin-left:autoによる右揃えを有効化 */
+/* style.css version: v1.2 (2026-06-26) 変更内容: 「指定」行のラベルが2行に折り返せるよう調整(アイコンとの重なりを解消) */
 /* --- Design System & CSS Variables --- */
 :root {
   --bg-color: #080b11;
@@ -572,6 +572,8 @@ h1, h2, h3, h4 {
 .timeline-item.highlight-time .time {
   color: var(--color-cyan);
   font-weight: 700;
+  white-space: normal;
+  line-height: 1.3;
 }
 
 .timeline-item .time {

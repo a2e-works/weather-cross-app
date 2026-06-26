@@ -1,8 +1,8 @@
 // --- Main Application Logic ---
-// app.js version: v3.0 (2026-06-26)
-// 変更内容: LINE共有内容のレイアウトを変更。「天気/降水/風速」を1項目1行にし、ラベル幅
-//          （全角2文字で固定）を揃えることで、可変幅フォントの環境やスマホの狭い画面でも
-//          縦に揃って見えるようにした（半角スペースでの位置調整は環境によってズレるため）
+// app.js version: v3.1 (2026-06-26)
+// 変更内容: 「指定」行のラベル（日付付きの場合）がアイコンと重なるバグを修正。
+//          「指定」と「月日 時刻」の間に改行を入れ、2行で表示できるようにした（style.css側も対応）
+//          ※v3.0: LINE共有内容のレイアウトを「天気/降水/風速」1項目1行・ラベル幅固定に変更
 //          ※v2.9: LINE共有内容に「30分後」のデータも追加、ボタン文字を短縮
 //          ※v2.8: 風速マップ(Windy)に選択地点のマーカー表示を追加
 //          ※v2.7: 日付セレクターを各サイトの実際の表示範囲（約10日先）まで拡張
@@ -1065,7 +1065,7 @@ function renderSourceCard(sourceId, scraped, baseData, warnings, dateOffset, tar
 
   const specLabel = dateOffset === 0
     ? `指定 (${targetTime})`
-    : `指定 (${targetDate.getMonth() + 1}/${targetDate.getDate()} ${targetTime})`;
+    : `指定<br>${targetDate.getMonth() + 1}/${targetDate.getDate()} ${targetTime}`;
 
   if (specData) {
     const itemHtml = createTimelineItemHtml(specLabel, specData, sourceId, true);
