@@ -1,0 +1,305 @@
+<!-- index.html version: v1.6 (2026-06-26) 変更内容: LINEボタンのツールチップをPC/モバイルでの挙動に合わせて更新 -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CROSS WEATHER - 天気予報横断比較</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <!-- Local Styles -->
+  <link rel="stylesheet" href="style.css">
+  <!-- PWA Manifest & Theme Color -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00f0ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon.svg">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <span class="logo-icon"><i class="fa-solid fa-cloud-bolt"></i></span>
+        <h1>CROSS WEATHER</h1>
+      </div>
+      <div class="current-time-display" id="system-time">
+        <i class="fa-regular fa-clock"></i> <span id="time-string">--:--:--</span>
+      </div>
+    </header>
+
+    <!-- Control Panel -->
+    <section class="control-panel glass">
+      <div class="search-group" style="flex: 1 1 500px;">
+        <div class="select-wrapper" style="flex: 1;">
+          <select id="pref-select">
+            <option value="">都道府県を選択</option>
+            <!-- JSで動的に追加 -->
+          </select>
+        </div>
+        
+        <div class="select-wrapper" style="flex: 1.5;">
+          <select id="city-select" disabled>
+            <option value="">市区町村を選択</option>
+            <!-- JSで動的に追加 -->
+          </select>
+        </div>
+
+        <div class="select-wrapper" style="flex: 1.3;">
+          <select id="history-select">
+            <option value="">履歴から選択</option>
+            <!-- JSで動的に追加 -->
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="setting-item">
+          <label for="date-select"><i class="fa-regular fa-calendar"></i> 日付:</label>
+          <select id="date-select">
+            <option value="0">今日</option>
+            <option value="1">明日</option>
+            <option value="2">明後日</option>
+          </select>
+        </div>
+
+        <div class="setting-item">
+          <label for="target-time-input"><i class="fa-regular fa-clock"></i> 指定時刻:</label>
+          <input type="time" id="target-time-input" value="12:00">
+        </div>
+      </div>
+
+      <div class="action-group">
+        <button id="refresh-btn" class="btn btn-secondary" title="最新情報に更新">
+          <i class="fa-solid fa-arrows-rotate"></i> 更新
+        </button>
+        <button id="radar-open-btn" class="btn btn-accent">
+          <i class="fa-solid fa-map-location-dot"></i> 雨雲レーダー
+        </button>
+        <button id="wind-open-btn" class="btn btn-accent" style="background: rgba(0, 240, 255, 0.15); border-color: rgba(0, 240, 255, 0.3); color: #a5f3fc; box-shadow: 0 4px 15px rgba(0, 240, 255, 0.05);">
+          <i class="fa-solid fa-wind"></i> 風速マップ
+        </button>
+        <button id="history-clear-btn" class="btn btn-secondary" title="履歴をすべて削除" style="margin-left: auto;">
+          <i class="fa-solid fa-trash"></i> 履歴削除
+        </button>
+        <button id="capture-btn" class="btn btn-success">
+          <i class="fa-solid fa-camera"></i> 画面を保存
+        </button>
+        <button id="line-share-btn" class="btn btn-secondary" title="スマホ・タブレット: LINEアプリを起動／PC: 内容をコピー" style="background: rgba(6, 199, 85, 0.15); border-color: rgba(6, 199, 85, 0.35); color: #06c755;">
+          <i class="fa-brands fa-line"></i> LINE起動
+        </button>
+      </div>
+    </section>
+
+    <!-- Location Indicator -->
+    <div class="location-indicator">
+      <h2 id="current-location-name"><i class="fa-solid fa-street-view"></i> 東京都千代田区</h2>
+      <span class="last-update" id="last-update-time">取得時間: 未取得</span>
+    </div>
+
+    <!-- Main Comparison Grid -->
+    <main class="comparison-grid" id="capture-target">
+      <!-- Weathernews Card -->
+      <article class="weather-card glass" id="card-weathernews">
+        <div class="card-header wn-theme">
+          <div class="source-info">
+            <span class="source-badge">Weathernews</span>
+            <h3>ウェザーニュース</h3>
+          </div>
+          <a href="https://weathernews.jp/" target="_blank" class="source-link" id="link-weathernews" title="公式サイトを開く">
+            <i class="fa-solid fa-up-right-from-square"></i>
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="current-weather">
+            <div class="weather-main">
+              <div class="weather-icon-lg" id="wn-current-icon"><i class="fa-solid fa-circle-question"></i></div>
+              <div class="weather-temp-group">
+                <span class="temp" id="wn-current-temp">--°C</span>
+                <span class="weather-text" id="wn-current-desc">--</span>
+              </div>
+            </div>
+            <div class="weather-details">
+              <div class="detail-item"><span class="label">降水</span><span class="val" id="wn-current-precip">-- mm</span></div>
+              <div class="detail-item"><span class="label">風速</span><span class="val" id="wn-current-wind">-- m/s</span></div>
+            </div>
+          </div>
+          
+          <div class="forecast-section">
+            <h4><i class="fa-regular fa-clock"></i> 時間予報</h4>
+            <div class="forecast-timeline">
+              <!-- Timeline Items JS -->
+            </div>
+          </div>
+
+          <div class="warnings-section hidden" id="wn-warnings-box">
+            <h4><i class="fa-solid fa-triangle-exclamation"></i> 注意報・警報</h4>
+            <div class="warning-tags" id="wn-warnings">
+              <!-- Warnings JS -->
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Yahoo! Weather Card -->
+      <article class="weather-card glass" id="card-yahoo">
+        <div class="card-header y-theme">
+          <div class="source-info">
+            <span class="source-badge">Yahoo! 天気</span>
+            <h3>Yahoo! 天気</h3>
+          </div>
+          <a href="https://weather.yahoo.co.jp/weather/" target="_blank" class="source-link" id="link-yahoo" title="公式サイトを開く">
+            <i class="fa-solid fa-up-right-from-square"></i>
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="current-weather">
+            <div class="weather-main">
+              <div class="weather-icon-lg" id="y-current-icon"><i class="fa-solid fa-circle-question"></i></div>
+              <div class="weather-temp-group">
+                <span class="temp" id="y-current-temp">--°C</span>
+                <span class="weather-text" id="y-current-desc">--</span>
+              </div>
+            </div>
+            <div class="weather-details">
+              <div class="detail-item"><span class="label">降水</span><span class="val" id="y-current-precip">-- mm</span></div>
+              <div class="detail-item"><span class="label">風速</span><span class="val" id="y-current-wind">-- m/s</span></div>
+            </div>
+          </div>
+          
+          <div class="forecast-section">
+            <h4><i class="fa-regular fa-clock"></i> 時間予報</h4>
+            <div class="forecast-timeline">
+              <!-- Timeline Items JS -->
+            </div>
+          </div>
+
+          <div class="warnings-section hidden" id="y-warnings-box">
+            <h4><i class="fa-solid fa-triangle-exclamation"></i> 注意報・警報</h4>
+            <div class="warning-tags" id="y-warnings">
+              <!-- Warnings JS -->
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- tenki.jp Card -->
+      <article class="weather-card glass" id="card-tenki">
+        <div class="card-header t-theme">
+          <div class="source-info">
+            <span class="source-badge">tenki.jp</span>
+            <h3>日本気象協会</h3>
+          </div>
+          <a href="https://tenki.jp/" target="_blank" class="source-link" id="link-tenki" title="公式サイトを開く">
+            <i class="fa-solid fa-up-right-from-square"></i>
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="current-weather">
+            <div class="weather-main">
+              <div class="weather-icon-lg" id="t-current-icon"><i class="fa-solid fa-circle-question"></i></div>
+              <div class="weather-temp-group">
+                <span class="temp" id="t-current-temp">--°C</span>
+                <span class="weather-text" id="t-current-desc">--</span>
+              </div>
+            </div>
+            <div class="weather-details">
+              <div class="detail-item"><span class="label">降水</span><span class="val" id="t-current-precip">-- mm</span></div>
+              <div class="detail-item"><span class="label">風速</span><span class="val" id="t-current-wind">-- m/s</span></div>
+            </div>
+          </div>
+          
+          <div class="forecast-section">
+            <h4><i class="fa-regular fa-clock"></i> 時間予報</h4>
+            <div class="forecast-timeline">
+              <!-- Timeline Items JS -->
+            </div>
+          </div>
+
+          <div class="warnings-section hidden" id="t-warnings-box">
+            <h4><i class="fa-solid fa-triangle-exclamation"></i> 注意報・警報</h4>
+            <div class="warning-tags" id="t-warnings">
+              <!-- Warnings JS -->
+            </div>
+          </div>
+        </div>
+      </article>
+    </main>
+
+    <!-- Radar Modal (別画面扱い) -->
+    <div class="modal" id="radar-modal">
+      <div class="modal-content glass">
+        <div class="modal-header">
+          <h2><i class="fa-solid fa-map-location-dot"></i> 高解像度雨雲レーダー</h2>
+          <button class="modal-close-btn" id="radar-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="radar-map"></div>
+          
+          <!-- Radar Control Panel -->
+          <div class="radar-controls">
+            <div class="play-btn-group">
+              <button id="radar-play-btn" class="btn btn-secondary">
+                <i class="fa-solid fa-play"></i> 再生
+              </button>
+            </div>
+            <div class="time-slider-container">
+              <input type="range" id="radar-time-slider" min="0" max="2" value="0" step="1">
+              <div class="slider-labels">
+                <span class="label-active" data-index="0">現在</span>
+                <span data-index="1">30分後</span>
+                <span data-index="2">1時間後</span>
+              </div>
+            </div>
+            <div class="radar-info">
+              <span id="radar-time-display">表示時刻: --:--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wind Modal (Windy iframe 埋め込み) -->
+    <div class="modal" id="wind-modal">
+      <div class="modal-content glass" style="border-color: var(--color-cyan); box-shadow: var(--shadow-neon); height: 90%; max-height: 850px;">
+        <div class="modal-header">
+          <h2><i class="fa-solid fa-wind" style="color: var(--color-cyan); text-shadow: var(--shadow-neon);"></i> リアルタイム風速・風向マップ (Windy)</h2>
+          <button class="modal-close-btn" id="wind-close-btn">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 0; background: #0b0f19;">
+          <iframe id="windy-iframe" src="" style="width: 100%; height: 100%; border: none; border-radius: 0 0 16px 16px;"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast">メッセージ</div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- html2canvas JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- App JS Files -->
+  <script src="jma_codes.js"></script>
+  <script src="radar.js"></script>
+  <script src="app.js"></script>
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

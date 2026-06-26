@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ab20fd;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="15" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="#080b11" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+  <!-- Glowing circle -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="url(#grad1)" stroke-width="12" filter="url(#glow)"/>
+  <!-- Weather icon (cloud with bolt and rain) -->
+  <g fill="none" stroke="#f8fafc" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" transform="translate(116, 116) scale(0.55)">
+    <!-- Cloud shape path -->
+    <path d="M400,288 A80,80 0 0,0 400,128 A120,120 0 0,0 176,176 A96,96 0 0,0 144,352 L400,352" fill="url(#grad1)" opacity="0.8"/>
+    <path d="M400,288 A80,80 0 0,0 400,128 A120,120 0 0,0 176,176 A96,96 0 0,0 144,352 L400,352" stroke="#00f0ff" stroke-width="20" filter="url(#glow)"/>
+    <!-- Lightning Bolt -->
+    <polygon points="240,320 180,420 230,420 190,500 290,380 240,380" fill="#fbbf24" stroke="#fbbf24" stroke-width="8" filter="url(#glow)"/>
+  </g>
+</svg>
