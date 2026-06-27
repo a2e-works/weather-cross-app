@@ -1,6 +1,12 @@
 // --- Main Application Logic ---
-// app.js version: v3.5 (2026-06-26)
-// 変更内容: 「注意報・警報」のバッジが常に空文字になっていたバグを修正。気象庁のJSONには
+// app.js version: v3.6 (2026-06-26)
+// 変更内容: 重大バグ修正。注意報・警報のエリア判定が、存在しない構造(a.area.name)を見ていたため
+//          常に一致に失敗し、「無関係な先頭エリア」の警報を誤って表示してしまっていた
+//          （実際とは全く違う地域の警報が出る不具合）。気象庁の公式リファレンス実装に基づき、
+//          市区町村コード(a.code)による完全一致に変更。一致しない場合は何も表示しない（安全側）。
+//          あわせて公式ページへのリンクに &lang=ja を追加し、フォールバック時は都道府県単位の
+//          ページにリンクするよう修正。
+//          ※v3.5: 「注意報・警報」のバッジが常に空文字になっていたバグを修正。気象庁のJSONには
 //          警報の「名称」が直接入っておらず、コード番号(例:03)だけが入っているため、
 //          コード→名称の対応表(WARNING_CODE_NAMES)を新設して翻訳するように変更。
 //          また、各カードに気象庁公式の警報ページへの直リンクを追加（詳細はそちらで確認可能）
@@ -549,7 +555,7 @@ async function fetchWeatherData(isRefresh = false) {
     const baseWeatherData = await fetchOpenMeteoData(currentLatLng[0], currentLatLng[1]);
     
     // 2. 注意報・警報の取得 (気象庁API経由)
-    const warnings = await fetchJmaWarnings(currentPrefCode);
+    const warnings = await fetchJmaWarnings(currentPrefCode, currentCityCode);
 
     // 3. Yahoo!天気の実データ取得 (CORSプロキシ経由でページの時刻別表を解析)
     const yahooData = await fetchYahooCurrentData(currentSearchKeyword);
@@ -733,7 +739,7 @@ const WARNING_CODE_NAMES = {
   "48": "高潮危険警報", "49": "土砂災害危険警報"
 };
 
-async function fetchJmaWarnings(prefCode) {
+async function fetchJmaWarnings(prefCode, cityCode) {
   try {
     // 例: 東京都(130000)の警告データ
     // 気象庁の警告JSONはCORS制限がないため直接取得可能
@@ -744,13 +750,16 @@ async function fetchJmaWarnings(prefCode) {
     const warnings = [];
 
     // JSON構造をパースして注意報・警報を抽出する
-    // 通常、各エリアの warningCode に含まれるリストがある
-    if (data.areaTypes && data.areaTypes[1]) {
+    // ※気象庁の公式リファレンス実装に基づき、各エリアは a.code に市区町村コード（7桁）が
+    //   直接入っている。以前は a.area.name との文字列一致を試みていたが、そのような構造は
+    //   存在せず常に一致に失敗し、結果的に「先頭のエリア」(=無関係な地域)へ
+    //   誤ってフォールバックしてしまっていた（実際とは異なる地域の警報が出る不具合の原因）。
+    if (data.areaTypes && data.areaTypes[1] && cityCode) {
       const areas = data.areaTypes[1].areas;
-      // 検索中の地域名を含むエリアを探す
-      let targetArea = areas.find(a => a.area && currentPlaceName.includes(a.area.name));
-      if (!targetArea) targetArea = areas[0]; // なければ最初の地域
+      const targetArea = areas.find(a => String(a.code) === String(cityCode));
 
+      // 一致するエリアが見つからない場合は「該当データなし」として扱う
+      // （無関係な地域の警報を誤って表示するより、何も表示しない方が安全）
       if (targetArea && targetArea.warnings) {
         targetArea.warnings.forEach(w => {
           if (w.status === "解除" || w.status === "発表なし") return;
@@ -1136,8 +1145,12 @@ function renderSourceCard(sourceId, scraped, baseData, warnings, dateOffset, tar
   // 気象庁公式の警報ページへの直リンク（市区町村単位で詳細を確認できる）
   const warningsLink = document.getElementById(`${prefix}warnings-link`);
   if (warningsLink) {
-    const areaCodeForLink = currentCityCode || currentPrefCode;
-    warningsLink.href = `https://www.jma.go.jp/bosai/warning/#area_type=class20s&area_code=${areaCodeForLink}`;
+    if (currentCityCode) {
+      warningsLink.href = `https://www.jma.go.jp/bosai/warning/#area_type=class20s&area_code=${currentCityCode}&lang=ja`;
+    } else {
+      // 市区町村コードが無い場合（フォールバックモード等）は都道府県単位のページにする
+      warningsLink.href = `https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=${currentPrefCode}&lang=ja`;
+    }
   }
 
   if (warnings && warnings.length > 0) {
