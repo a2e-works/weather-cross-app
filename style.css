@@ -1,4 +1,4 @@
-/* style.css version: v1.2 (2026-06-26) 変更内容: 「指定」行のラベルが2行に折り返せるよう調整(アイコンとの重なりを解消) */
+/* style.css version: v1.3 (2026-06-26) 変更内容: 気象庁公式リンク(warnings-official-link)のスタイルを追加 */
 /* --- Design System & CSS Variables --- */
 :root {
   --bg-color: #080b11;
@@ -644,6 +644,21 @@ h1, h2, h3, h4 {
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fca5a5;
+}
+
+.warnings-official-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition-smooth);
+}
+
+.warnings-official-link:hover {
+  color: var(--color-cyan);
 }
 
 .hidden {

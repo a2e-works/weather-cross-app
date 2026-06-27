@@ -1,6 +1,10 @@
 // --- Main Application Logic ---
-// app.js version: v3.4 (2026-06-26)
-// 変更内容: 画面保存時のファイル名に時刻（時分秒）も追加。あわせてUTC基準のtoISOString()ではなく
+// app.js version: v3.5 (2026-06-26)
+// 変更内容: 「注意報・警報」のバッジが常に空文字になっていたバグを修正。気象庁のJSONには
+//          警報の「名称」が直接入っておらず、コード番号(例:03)だけが入っているため、
+//          コード→名称の対応表(WARNING_CODE_NAMES)を新設して翻訳するように変更。
+//          また、各カードに気象庁公式の警報ページへの直リンクを追加（詳細はそちらで確認可能）
+//          ※v3.4: 画面保存時のファイル名に時刻（時分秒）も追加。あわせてUTC基準のtoISOString()ではなく
 //          ローカル時間（日本時間）から日付・時刻を組み立てる方式に変更（日付のズレを防止）
 //          ※v3.3: 履歴から選択した際に都道府県・市区町村セレクトにも該当地域を反映
 //          （try/catchで握りつぶされ画面自体は壊れていなかったが、コンソールにエラーが出ていた）
@@ -713,6 +717,22 @@ function getInterpolatedDataAtOffset(baseData, baseTime, offsetMinutes) {
 }
 
 // --- 気象庁注意報・警報取得 ---
+// 気象庁の警報・注意報コード→名称対応表
+// （気象庁のJSONには「名称」が直接入っておらず、数値コードだけが入っているため、
+//   これまで存在しない w.name を読みに行ってしまい、表示が空になっていた）
+const WARNING_CODE_NAMES = {
+  "02": "暴風雪警報", "03": "大雨警報", "04": "洪水警報", "05": "暴風警報",
+  "06": "大雪警報", "07": "波浪警報", "08": "高潮警報", "09": "土砂災害警報",
+  "10": "大雨注意報", "12": "大雪注意報", "13": "風雪注意報", "14": "雷注意報",
+  "15": "強風注意報", "16": "波浪注意報", "17": "融雪注意報", "18": "洪水注意報",
+  "19": "高潮注意報", "20": "濃霧注意報", "21": "乾燥注意報", "22": "なだれ注意報",
+  "23": "低温注意報", "24": "霜注意報", "25": "着氷注意報", "26": "着雪注意報",
+  "29": "土砂災害注意報", "32": "暴風雪特別警報", "33": "大雨特別警報",
+  "35": "暴風特別警報", "36": "大雪特別警報", "37": "波浪特別警報",
+  "38": "高潮特別警報", "39": "土砂災害特別警報", "43": "大雨危険警報",
+  "48": "高潮危険警報", "49": "土砂災害危険警報"
+};
+
 async function fetchJmaWarnings(prefCode) {
   try {
     // 例: 東京都(130000)の警告データ
@@ -733,12 +753,17 @@ async function fetchJmaWarnings(prefCode) {
 
       if (targetArea && targetArea.warnings) {
         targetArea.warnings.forEach(w => {
-          if (w.status !== "解除" && w.status !== "発表なし") {
-            warnings.push({
-              name: w.name,
-              level: w.stateCode === "1" ? "warning" : "advisory" // 1は警報、その他は注意報など
-            });
-          }
+          if (w.status === "解除" || w.status === "発表なし") return;
+          if (w.code === undefined || w.code === null) return;
+
+          // コードは "03" のように2桁の場合と、3のように数値（先頭0なし）の場合があるため
+          // 文字列化してpadStart(2,'0')で2桁に揃えてから対応表を参照する
+          const codeStr = String(w.code).padStart(2, "0");
+          const name = WARNING_CODE_NAMES[codeStr] || `警報(コード${codeStr})`;
+          // 「特別警報」「警報」は赤系、「注意報」は橙系で表示する
+          const level = name.includes("警報") ? "warning" : "advisory";
+
+          warnings.push({ name, level });
         });
       }
     }
@@ -1107,6 +1132,13 @@ function renderSourceCard(sourceId, scraped, baseData, warnings, dateOffset, tar
   const warningsBox = document.getElementById(`${prefix}warnings-box`);
   const warningsContainer = document.getElementById(`${prefix}warnings`);
   warningsContainer.innerHTML = "";
+
+  // 気象庁公式の警報ページへの直リンク（市区町村単位で詳細を確認できる）
+  const warningsLink = document.getElementById(`${prefix}warnings-link`);
+  if (warningsLink) {
+    const areaCodeForLink = currentCityCode || currentPrefCode;
+    warningsLink.href = `https://www.jma.go.jp/bosai/warning/#area_type=class20s&area_code=${areaCodeForLink}`;
+  }
 
   if (warnings && warnings.length > 0) {
     warningsBox.classList.remove("hidden");
