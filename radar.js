@@ -1,6 +1,10 @@
 // --- Radar Controller using Leaflet and JMA (気象庁) 高解像度降水ナウキャスト ---
-// radar.js version: v2.2 (2026-06-26)
-// 変更内容: 30分後・1時間後の予報が見つからないことがあるバグを修正。実況(N1)の最新基準時刻と
+// radar.js version: v2.3 (2026-06-26)
+// 変更内容: 背景マップを暗いテーマ(dark_all)から薄いテーマ(light_all)に変更し、降水ナウキャストの
+//          薄い雨が暗い背景に埋もれて見えなくなる問題を解消。雨雲レイヤーの透明度も0.65→0.85に。
+//          また「表示時刻」がUTC基準のまま表示され日本時間と9時間ズレていたバグを修正
+//          （Date.UTC()で明示的にUTCとして解釈し、ブラウザのローカル時刻＝日本時間に変換）
+//          ※v2.2: 30分後・1時間後の予報が見つからないことがあるバグを修正。実況(N1)の最新基準時刻と
 //          予報(N2)の更新タイミングがごくわずかにズレることがあり、突き合わせに失敗していたため、
 //          N2データ自身が持つ最新の基準時刻を信頼するよう変更（レースコンディション対策）
 //          ※v2.1: 初期表示のズームレベルを10→12に変更（2段階拡大表示）
@@ -81,15 +85,17 @@ class RadarManager {
   }
 
   initMap() {
-    // 地図の作成 (CartoDB Dark Matter レイヤーを使用)
+    // 地図の作成
+    // ※以前はダークテーマ(dark_all)を使用していたが、降水ナウキャストのタイルは
+    //   薄い降水(水色)が暗い背景では非常に見えにくくなるため、気象庁公式サイトに近い
+    //   薄い色調の地図(light_all)に変更し、雨雲の視認性を確保する
     this.map = L.map('radar-map', {
       zoomControl: true,
       minZoom: 5,
       maxZoom: 18
     }).setView(this.currentLatLng, 12);
 
-    // ダークテーマ地図タイル
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 20
@@ -182,7 +188,7 @@ class RadarManager {
         if (!entry) return; // 予報が見つからなければそのインデックスはスキップ
         const layerUrl = `https://www.jma.go.jp/bosai/jmatile/data/nowc/${entry.basetime}/none/${entry.validtime}/surf/hrpns/{z}/{x}/{y}.png`;
         this.radarLayers[idx] = L.tileLayer(layerUrl, {
-          opacity: 0.65,
+          opacity: 0.85,
           maxZoom: 18,
           maxNativeZoom: 10, // ナウキャストのタイルはズーム10までのため、それ以上は拡大表示する
           minZoom: 5,
@@ -200,10 +206,18 @@ class RadarManager {
     }
   }
 
+  // 気象庁のvalidtime（basetime/validtime文字列）はUTC基準のため、日本時間に変換して表示する
+  // （これまでは文字列をそのまま切り出していたため、表示が実際の日本時間と9時間ズレていた）
   formatDisplayTime(jmaTimeStr) {
     if (!jmaTimeStr) return '--:--';
-    const hour = jmaTimeStr.substring(8, 10);
-    const min = jmaTimeStr.substring(10, 12);
+    const y = parseInt(jmaTimeStr.substring(0, 4));
+    const mo = parseInt(jmaTimeStr.substring(4, 6)) - 1;
+    const d = parseInt(jmaTimeStr.substring(6, 8));
+    const h = parseInt(jmaTimeStr.substring(8, 10));
+    const mi = parseInt(jmaTimeStr.substring(10, 12));
+    const utcDate = new Date(Date.UTC(y, mo, d, h, mi));
+    const hour = String(utcDate.getHours()).padStart(2, '0'); // ブラウザのローカル時刻(日本時間)に自動変換される
+    const min = String(utcDate.getMinutes()).padStart(2, '0');
     return `${hour}:${min}`;
   }
 
