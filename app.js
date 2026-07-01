@@ -1,10 +1,13 @@
 // --- Main Application Logic ---
-// app.js version: v3.8 (2026-06-27)
-// 変更内容: 画面保存機能を強化。①キャプチャ画像の右上に現在時刻(年月日時分秒)を
-//          シアン色で描画。②注意報セクションがhiddenでも確実にキャプチャに含まれるよう
-//          撮影中のみ一時的に可視化してから元に戻す。③保存完了後のトーストに
-//          「ダウンロードを確認」ボタンを追加(chrome://downloadsを開く)。
-//          ※v3.7: 注意報・警報のAPIエンドポイントを新形式(/data/r8/)に全面切替
+// app.js version: v3.9 (2026-06-28)
+// 変更内容:
+//   ①「取得時間 hh:mm:ss」表示を「更新:hh:mm」に変更し、lastFetchTime変数で管理
+//   ②画面保存の画像オーバーレイをlastFetchTime（データ取得時刻）ベースに変更
+//     左上に「場所名 (MM/DD)」、右上に「更新:hh:mm」を表示
+//   ③更新ボタン押下時の日付セレクターバグ修正。「5日後10:00」など具体的な将来日時が
+//     選択されている場合、その日時を過ぎるまで選択を保持する（adjustDateSelectOnRefresh）
+//     「次の4時」が選ばれている場合のみ、日またぎに合わせて自動的に更新する
+//   ※v3.8: 画面保存に時刻オーバーレイ・注意報必須化・ダウンロード確認ボタン追加
 //          気象庁の2026年5月29日のシステム移行を境に更新が完全に止まっていた（実際に検証した
 //          ところ約1か月前の古いデータが返ってきたままだった）。新しいエンドポイント
 //          (/data/r8/{code}.json)に全面切替。新形式は「大雨」「土砂災害」「強風」「波浪」等の
@@ -57,6 +60,7 @@ let currentPrefCode = "130000"; // 東京都
 let currentPrefEng = "tokyo";
 let currentSearchKeyword = "100-0001";
 let currentPlaceName = "東京都千代田区";
+let lastFetchTime = null; // 最後にデータを取得した日時（画像の時刻オーバーレイに使用）
 let jmaCitiesMap = {}; // 都道府県コード -> 市区町村リスト（class20s）のキャッシュ
 let locationSelected = false; // 都道府県・市区町村の選択が完了したかどうか
 let isFallbackLocation = false; // PREFECTURES_MAP（主要都市データ）経由で選択されたかどうか
@@ -96,6 +100,10 @@ function initApp() {
       showToast("先に都道府県・市区町村を選択してください", "error");
       return;
     }
+    // 「次の4時」以外の日時が選択されている場合、その日時がまだ未来であれば変更しない。
+    // 「次の4時」(今日0〜3時→今日4:00、それ以外→明日4:00)が選ばれている場合のみ
+    // 日時の自動更新を行う（日付をまたいだ際に選択日時が1日ずれるバグを防ぐ）。
+    adjustDateSelectOnRefresh();
     fetchWeatherData(true);
   });
   document.getElementById("radar-open-btn").addEventListener("click", () => {
@@ -151,11 +159,52 @@ function setDefaultDateTime() {
   timeInput.value = "04:00";
 }
 
+// --- 更新ボタン押下時の日付セレクター調整 ---
+// 「次の4時」(今日0~3時→offset=0、それ以外→offset=1)が選ばれている場合のみ
+// 日またぎで自動的に日付を更新する。
+// 「5日後の10:00」のように具体的な将来日時を選んでいる場合は、
+// その日時がまだ未来であれば選択を保持し、過去になった場合のみ「次の4時」に戻す。
+function adjustDateSelectOnRefresh() {
+  const dateSelect = document.getElementById("date-select");
+  const timeInput = document.getElementById("target-time-input");
+  if (!dateSelect || !timeInput) return;
+
+  const now = new Date();
+  const currentOffset = parseInt(dateSelect.value);
+  const targetTime = timeInput.value || "04:00";
+  const [tH, tM] = targetTime.split(":").map(Number);
+
+  // 「次の4時」デフォルト選択とは: offset=0で時刻04:00、またはoffset=1で時刻04:00
+  const isDefaultNext4 = (targetTime === "04:00") && (currentOffset === 0 || currentOffset === 1);
+
+  if (isDefaultNext4) {
+    // デフォルトの「次の4時」が選ばれている場合は日またぎに合わせて再計算する
+    const hour = now.getHours();
+    dateSelect.value = (hour >= 0 && hour < 4) ? "0" : "1";
+    return;
+  }
+
+  // それ以外(具体的な将来日時が選ばれている場合)は、
+  // 選択した日時が既に過去になっていれば「次の4時」に戻し、まだ未来なら何もしない
+  const targetDate = new Date(now);
+  targetDate.setDate(now.getDate() + currentOffset);
+  targetDate.setHours(tH, tM, 0, 0);
+
+  if (targetDate <= now) {
+    // 選択日時を過ぎてしまっていた場合は「次の4時」に戻す
+    const hour = now.getHours();
+    dateSelect.value = (hour >= 0 && hour < 4) ? "0" : "1";
+    timeInput.value = "04:00";
+    showToast("指定日時を過ぎたため、次の朝4:00に設定しました");
+  }
+  // まだ未来の場合は何もしない（選択を保持）
+}
+
 // --- 地域未選択時の待機表示 ---
 function showLocationPrompt() {
   document.getElementById("current-location-name").innerHTML =
     `<i class="fa-solid fa-street-view"></i> 都道府県・市区町村を選択してください`;
-  document.getElementById("last-update-time").textContent = "取得時間: 未取得";
+  document.getElementById("last-update-time").textContent = "更新:--:--";
 
   const sources = ["weathernews", "yahoo", "tenki"];
   sources.forEach(sourceId => {
@@ -584,9 +633,11 @@ async function fetchWeatherData(isRefresh = false) {
     renderSourceCard("yahoo", yahooData, baseWeatherData, warnings, dateOffset, targetTime);
     renderSourceCard("tenki", tenkiData, baseWeatherData, warnings, dateOffset, targetTime);
 
-    // 取得日時の更新
+    // 取得日時の更新（lastFetchTimeに保存し、画像保存時のオーバーレイにも使用する）
     const now = new Date();
-    document.getElementById("last-update-time").textContent = `取得時間: ${now.toLocaleTimeString()}`;
+    lastFetchTime = now;
+    const pad = (n) => String(n).padStart(2, "0");
+    document.getElementById("last-update-time").textContent = `更新:${pad(now.getHours())}:${pad(now.getMinutes())}`;
     showToast("天気情報を更新しました");
 
   } catch (err) {
@@ -1341,7 +1392,6 @@ async function captureScreen() {
     const hidden = el ? el.classList.contains("hidden") : false;
     return { el, hidden };
   });
-  // 警報が出ている場合は既に表示されているが、念のため全て一時的に可視化
   wasHidden.forEach(({ el }) => { if (el) el.classList.remove("hidden"); });
 
   try {
@@ -1351,40 +1401,61 @@ async function captureScreen() {
     const options = {
       backgroundColor: "#080b11",
       useCORS: true,
-      scale: 2, // 高解像度
+      scale: 2,
       logging: false,
     };
 
     const canvas = await html2canvas(target, options);
 
-    // 現在時刻を画像の右上に描画する
-    // （キャプチャした画像だけ見た時に「いつの情報か」が分かるように）
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2, "0");
-    const timeLabel = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-
+    // 画像にオーバーレイ情報を描画する
     const ctx = canvas.getContext("2d");
-    const fontSize = Math.round(canvas.width * 0.018); // 画像幅に対して約1.8%のサイズ
-    ctx.font = `bold ${fontSize}px 'Arial', sans-serif`;
+    const cw = canvas.width;
+    const ch = canvas.height;
+    const pad = (n) => String(n).padStart(2, "0");
+
+    // 取得時間（lastFetchTime）を使用。未取得の場合は現在時刻
+    const fetchTime = lastFetchTime || new Date();
+    const timeLabel = `更新:${pad(fetchTime.getHours())}:${pad(fetchTime.getMinutes())}`;
+    const dateLabel = `${pad(fetchTime.getMonth() + 1)}/${pad(fetchTime.getDate())}`;
+
+    const baseFontSize = Math.round(cw * 0.02);
+    const smallFontSize = Math.round(baseFontSize * 0.85);
+    const padding = Math.round(baseFontSize * 0.6);
+
+    // ① 右上：取得時間（更新:hh:mm）
+    ctx.font = `bold ${baseFontSize}px 'Arial', sans-serif`;
     ctx.textAlign = "right";
-    const textWidth = ctx.measureText(timeLabel).width;
-    const padding = Math.round(fontSize * 0.6);
-
-    // 背景（半透明の黒丸角矩形）を先に描く
-    const boxX = canvas.width - textWidth - padding * 2.5;
-    const boxY = padding * 0.6;
-    const boxW = textWidth + padding * 2;
-    const boxH = fontSize + padding * 1.2;
-    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+    const timeW = ctx.measureText(timeLabel).width;
+    const timeBoxW = timeW + padding * 2;
+    const timeBoxH = baseFontSize + padding * 1.2;
+    const timeBoxX = cw - timeBoxW - padding * 0.5;
+    const timeBoxY = padding * 0.5;
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxW, boxH, fontSize * 0.4);
+    ctx.roundRect(timeBoxX, timeBoxY, timeBoxW, timeBoxH, baseFontSize * 0.35);
     ctx.fill();
-
-    // 時刻テキストを描く
     ctx.fillStyle = "#00e5ff";
-    ctx.fillText(timeLabel, canvas.width - padding * 1.5, boxY + boxH - padding * 0.7);
+    ctx.fillText(timeLabel, cw - padding * 1.2, timeBoxY + timeBoxH - padding * 0.65);
+
+    // ② 左上：場所名 + (MM/DD)
+    // html2canvasでキャプチャ対象は<main id="capture-target">だが、
+    // 場所名は<section>内にあり含まれていないため、画像左上に自前で描画する
+    const locationLabel = `${currentPlaceName}  (${dateLabel})`;
+    ctx.font = `bold ${baseFontSize}px 'Arial', sans-serif`;
+    ctx.textAlign = "left";
+    const locW = ctx.measureText(locationLabel).width;
+    const locBoxW = locW + padding * 2;
+    const locBoxH = baseFontSize + padding * 1.2;
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.beginPath();
+    ctx.roundRect(padding * 0.5, timeBoxY, locBoxW, locBoxH, baseFontSize * 0.35);
+    ctx.fill();
+    ctx.fillStyle = "#00e5ff";
+    ctx.textAlign = "left";
+    ctx.fillText(locationLabel, padding * 1.2, timeBoxY + locBoxH - padding * 0.65);
 
     // 画像ダウンロード
+    const now = new Date();
     const link = document.createElement("a");
     const safePlace = currentPlaceName.replace(/[\s\(\)]/g, "_");
     const dateTimeStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
@@ -1393,9 +1464,6 @@ async function captureScreen() {
     link.href = canvas.toDataURL("image/png");
     link.click();
 
-    // 保存完了トーストに「ダウンロードフォルダを開く」ボタンを表示
-    // ※ブラウザのセキュリティ上、ダウンロードフォルダを直接開くAPIは存在しないため、
-    //   Chromeの「ダウンロード」ページ(chrome://downloads)を新タブで開く方法で代用する
     showToastWithAction(
       `「${fileName}」を保存しました`,
       "ダウンロードを確認",
@@ -1406,7 +1474,6 @@ async function captureScreen() {
     console.error("キャプチャエラー:", err);
     showToast("画像の保存に失敗しました。", "error");
   } finally {
-    // 警報が出ていなかったボックスは元のhidden状態に戻す
     wasHidden.forEach(({ el, hidden }) => { if (el && hidden) el.classList.add("hidden"); });
     btn.innerHTML = '<i class="fa-solid fa-camera"></i> 画面保存';
     btn.disabled = false;
