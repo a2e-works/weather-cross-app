@@ -1,4 +1,4 @@
-<!-- index.html version: v2.0 (2026-06-26) 変更内容: 各カードに気象庁公式の警報ページへの直リンクを追加 -->
+<!-- index.html version: v2.3 (2026-06-28) 変更内容: フッターを「©2026 M.Koo All rights reserved.」の1行に変更、アプリバージョンをv2.1に更新 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -30,6 +30,7 @@
       <div class="logo">
         <span class="logo-icon"><i class="fa-solid fa-cloud-bolt"></i></span>
         <h1>CROSS WEATHER</h1>
+        <span class="app-version">v2.1</span>
       </div>
       <div class="current-time-display" id="system-time">
         <i class="fa-regular fa-clock"></i> <span id="time-string">--:--:--</span>
@@ -245,6 +246,11 @@
           </div>
         </div>
       </article>
+
+      <!-- フッター: 画面保存・印刷に含めるため capture-target 内に配置 -->
+      <footer class="app-footer">
+        <span class="footer-copyright">&copy; 2026 M.Koo &nbsp; All rights reserved.</span>
+      </footer>
     </main>
 
     <!-- Radar Modal (別画面扱い) -->

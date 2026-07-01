@@ -1,4 +1,4 @@
-/* style.css version: v1.5 (2026-06-27) 変更内容: 降水タイルのフィルターをさらに強化(縁取り効果追加)、背景地図もわずかに暗くして1mm帯の有無を判別しやすく */
+/* style.css version: v1.8 (2026-06-28) 変更内容: フッターを暗い帯+右寄せ©表記スタイルに変更 */
 /* --- Design System & CSS Variables --- */
 :root {
   --bg-color: #080b11;
@@ -86,6 +86,43 @@ h1, h2, h3, h4 {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.25rem;
+}
+
+/* ヘッダーのバージョンバッジ */
+.app-version {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-cyan);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: 5px;
+  padding: 0.1rem 0.45rem;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+  align-self: flex-end;
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+}
+
+/* フッター (capture-target内・印刷時にも表示)
+   農薬配布計算ツールに合わせた暗い帯スタイル。
+   画面保存・印刷に含まれるのはこの1行のみ。 */
+.app-footer {
+  grid-column: 1 / -1;
+  background: rgba(0, 0, 0, 0.55);
+  border-top: 1px solid rgba(0, 240, 255, 0.15);
+  margin-top: 1rem;
+  padding: 0.55rem 1.2rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  border-radius: 0 0 8px 8px;
+}
+
+.footer-copyright {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
 .logo-icon {
