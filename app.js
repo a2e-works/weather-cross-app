@@ -1,6 +1,10 @@
 // --- Main Application Logic ---
-// app.js version: v3.7 (2026-06-27)
-// 変更内容: 重大バグ修正。注意報・警報の取得元エンドポイント(/data/warning/{code}.json)が、
+// app.js version: v3.8 (2026-06-27)
+// 変更内容: 画面保存機能を強化。①キャプチャ画像の右上に現在時刻(年月日時分秒)を
+//          シアン色で描画。②注意報セクションがhiddenでも確実にキャプチャに含まれるよう
+//          撮影中のみ一時的に可視化してから元に戻す。③保存完了後のトーストに
+//          「ダウンロードを確認」ボタンを追加(chrome://downloadsを開く)。
+//          ※v3.7: 注意報・警報のAPIエンドポイントを新形式(/data/r8/)に全面切替
 //          気象庁の2026年5月29日のシステム移行を境に更新が完全に止まっていた（実際に検証した
 //          ところ約1か月前の古いデータが返ってきたままだった）。新しいエンドポイント
 //          (/data/r8/{code}.json)に全面切替。新形式は「大雨」「土砂災害」「強風」「波浪」等の
@@ -1329,9 +1333,20 @@ async function captureScreen() {
 
   showToast("画面キャプチャを生成中...");
 
+  // 注意報セクションがhiddenになっているとhtml2canvasに拾われないため、
+  // キャプチャ中だけ一時的に可視化する
+  const warningBoxes = ["wn-warnings-box", "y-warnings-box", "t-warnings-box"];
+  const wasHidden = warningBoxes.map(id => {
+    const el = document.getElementById(id);
+    const hidden = el ? el.classList.contains("hidden") : false;
+    return { el, hidden };
+  });
+  // 警報が出ている場合は既に表示されているが、念のため全て一時的に可視化
+  wasHidden.forEach(({ el }) => { if (el) el.classList.remove("hidden"); });
+
   try {
     const target = document.getElementById("capture-target");
-    
+
     // html2canvas のオプション
     const options = {
       backgroundColor: "#080b11",
@@ -1341,28 +1356,85 @@ async function captureScreen() {
     };
 
     const canvas = await html2canvas(target, options);
-    
+
+    // 現在時刻を画像の右上に描画する
+    // （キャプチャした画像だけ見た時に「いつの情報か」が分かるように）
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const timeLabel = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const ctx = canvas.getContext("2d");
+    const fontSize = Math.round(canvas.width * 0.018); // 画像幅に対して約1.8%のサイズ
+    ctx.font = `bold ${fontSize}px 'Arial', sans-serif`;
+    ctx.textAlign = "right";
+    const textWidth = ctx.measureText(timeLabel).width;
+    const padding = Math.round(fontSize * 0.6);
+
+    // 背景（半透明の黒丸角矩形）を先に描く
+    const boxX = canvas.width - textWidth - padding * 2.5;
+    const boxY = padding * 0.6;
+    const boxW = textWidth + padding * 2;
+    const boxH = fontSize + padding * 1.2;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, fontSize * 0.4);
+    ctx.fill();
+
+    // 時刻テキストを描く
+    ctx.fillStyle = "#00e5ff";
+    ctx.fillText(timeLabel, canvas.width - padding * 1.5, boxY + boxH - padding * 0.7);
+
     // 画像ダウンロード
     const link = document.createElement("a");
     const safePlace = currentPlaceName.replace(/[\s\(\)]/g, "_");
-    // ファイル名に日付＋時刻（ローカル時間）を含める。toISOString()はUTC基準になるため、
-    // ローカル時間の年月日時分秒から自前で組み立てる
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2, "0");
     const dateTimeStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-    link.download = `weather_comparison_${safePlace}_${dateTimeStr}.png`;
+    const fileName = `weather_comparison_${safePlace}_${dateTimeStr}.png`;
+    link.download = fileName;
     link.href = canvas.toDataURL("image/png");
     link.click();
 
-    showToast("画像を保存しました！");
+    // 保存完了トーストに「ダウンロードフォルダを開く」ボタンを表示
+    // ※ブラウザのセキュリティ上、ダウンロードフォルダを直接開くAPIは存在しないため、
+    //   Chromeの「ダウンロード」ページ(chrome://downloads)を新タブで開く方法で代用する
+    showToastWithAction(
+      `「${fileName}」を保存しました`,
+      "ダウンロードを確認",
+      () => window.open("chrome://downloads", "_blank") || window.open("about:downloads", "_blank")
+    );
+
   } catch (err) {
     console.error("キャプチャエラー:", err);
     showToast("画像の保存に失敗しました。", "error");
   } finally {
+    // 警報が出ていなかったボックスは元のhidden状態に戻す
+    wasHidden.forEach(({ el, hidden }) => { if (el && hidden) el.classList.add("hidden"); });
     btn.innerHTML = '<i class="fa-solid fa-camera"></i> 画面保存';
     btn.disabled = false;
   }
 }
+
+// トースト通知にアクションボタン付き版
+function showToastWithAction(message, actionLabel, actionFn) {
+  const existing = document.getElementById("toast-notification");
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.id = "toast-notification";
+  toast.className = "toast show";
+  toast.innerHTML = `
+    <span>${message}</span>
+    <button onclick="(${actionFn.toString()})()" style="
+      margin-left: 0.8rem; padding: 0.2rem 0.7rem;
+      background: var(--color-cyan); color: #000; border: none;
+      border-radius: 6px; font-size: 0.78rem; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+    ">${actionLabel}</button>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.classList.remove("show"), 6000);
+  setTimeout(() => toast.remove(), 6500);
+}
+
 
 // --- ユーティリティ関数 ---
 
