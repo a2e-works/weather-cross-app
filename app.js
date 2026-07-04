@@ -1,8 +1,11 @@
 // --- Main Application Logic ---
-// app.js version: v4.2 (2026-06-28)
-// 変更内容: ①場所名の横に当日日付(MM/DD)を薄い文字で表示するよう変更(updateLocationDisplay関数で一元管理)
-//          ②画面保存のファイル名を「weather_comparison_」→「CROSS_WEATHER_」に変更
-//          ※v4.1: 画面保存のレイアウト崩れを修正(location-indicator+main+footerを縦合成)
+// app.js version: v4.3 (2026-06-28)
+// 変更内容: 雨雲レーダーボタンをtenki.jpレーダー(https://tenki.jp/radar/map/)を
+//          新しいタブで開く動作に変更。tenki.jpはiframe埋め込みをセキュリティポリシーで
+//          ブロックしているため、モーダル表示からの外部遷移方式に切り替え。
+//          tenki.jpの雨雲レーダーURLに座標パラメータの公式提供はないため、
+//          マップ版URLをそのまま開く形を採用。
+//          ※v4.2: 場所名横にMM/DD表示・ファイル名をCROSS_WEATHER_に変更
 //          気象庁の2026年5月29日のシステム移行を境に更新が完全に止まっていた（実際に検証した
 //          ところ約1か月前の古いデータが返ってきたままだった）。新しいエンドポイント
 //          (/data/r8/{code}.json)に全面切替。新形式は「大雨」「土砂災害」「強風」「波浪」等の
@@ -102,7 +105,11 @@ function initApp() {
     fetchWeatherData(true);
   });
   document.getElementById("radar-open-btn").addEventListener("click", () => {
-    radarManager.show(currentLatLng[0], currentLatLng[1]);
+    // tenki.jpの雨雲レーダーを新しいタブで開く
+    // ※tenki.jpはiframe埋め込みをブロックしているため外部遷移方式に変更
+    // ※座標パラメータはtenki.jp側が公式に提供していないため、現在地の最寄り地域ページへの
+    //   リンクよりも、地図から自分で場所を探せるマップ版のURLが最も使いやすい
+    window.open("https://tenki.jp/radar/map/", "_blank", "noopener");
   });
   document.getElementById("wind-open-btn").addEventListener("click", showWindMap);
   document.getElementById("wind-close-btn").addEventListener("click", hideWindMap);
