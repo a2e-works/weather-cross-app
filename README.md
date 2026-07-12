@@ -33,7 +33,7 @@ A2E Works Portfolio
 
 ### Rain Radar
 
-![Rain Radar](screenshots/02_rader.png)
+![Rain Radar](screenshots/02_radar.png)
 
 ### Wind Information
 
