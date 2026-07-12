@@ -75,7 +75,6 @@ A2E Works Portfolio
 などで利用を想定しています。
 
 ---
----
 
 ## How to Use
 
