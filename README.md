@@ -60,9 +60,9 @@ A2E Works Portfolio
 
 ## Demo
 
-GitHub Pagesから利用できます。
+GitHub Pages:
 
-（URL）
+https://a2e-works.github.io/weather-cross-app/
 
 ---
 
