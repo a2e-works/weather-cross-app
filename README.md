@@ -33,7 +33,7 @@ A2E Works Portfolio
 
 ### Rain Radar
 
-![Rain Radar](screenshots/02_radar.png)
+![Rain Radar](screenshots/02_rader.png)
 
 ### Wind Information
 
@@ -73,6 +73,19 @@ A2E Works Portfolio
 ・測量
 
 などで利用を想定しています。
+
+---
+---
+
+## How to Use
+
+1. GitHub Pagesを開きます。
+
+2. 位置情報の利用を許可してください。
+
+3. 表示したい地域を選択します。
+
+4. 雨雲レーダー、降水情報、風情報などを確認できます。
 
 ---
 
