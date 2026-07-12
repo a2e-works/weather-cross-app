@@ -10,7 +10,7 @@ A2E Works Portfolio
 
 屋外業務では
 
-30分後の降雨、風速でも判断が変わります。
+30分、1時間後の降雨、風速で判断が変わります。
 
 複数の気象サイトを切り替えて確認する運用だったため、
 必要情報を一画面へ集約するダッシュボードを開発しました。
@@ -22,10 +22,24 @@ A2E Works Portfolio
 - 複数サイトを巡回する時間を削減
 - 雨雲の変化を即確認
 - 現場判断を高速化
-- 判断ミス防止
+- 判断、情報共有ミス防止
 
 ---
+## Screenshots
 
+### Main Screen
+
+![Main Screen](screenshots/01_top.png)
+
+### Rain Radar
+
+![Rain Radar](screenshots/02_rader.png)
+
+### Wind Information
+
+![Wind Information](screenshots/03_wind.png)
+
+---
 ## 主な機能
 
 ✅ 気象サイト横断表示
@@ -35,6 +49,10 @@ A2E Works Portfolio
 ✅ 降水情報
 
 ✅ 風情報
+
+✅ 画面保存対応
+
+✅ LINE対応
 
 ✅ モバイル対応
 
